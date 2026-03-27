@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Golden Ratio Spiral Explorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #05070f;
+      --panel: #080d18;
+      --border: #1a2a3a;
+      --text-muted: #3a5a7a;
+      --text-dim: #7aa0c0;
+      --text-bright: #c0e0ff;
+      --accent: #3080c0;
+      --accent-light: #60b0f0;
+      --track: #1a3050;
+      --btn-bg: #0d1a28;
+      --btn-border: #2a4060;
+      --btn-active-bg: #1a3a5a;
+      --btn-active-border: #4a90c0;
+      --btn-active-text: #90d0ff;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-bright);
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #canvas-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    #title-bar {
+      padding: 12px 18px;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      border-bottom: 0.5px solid #0f1e30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    #title-bar a {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-decoration: none;
+      letter-spacing: 0.1em;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+    #title-bar a:hover { opacity: 1; }
+
+    canvas {
+      flex: 1;
+      display: block;
+      width: 100%;
+      cursor: crosshair;
+    }
+
+    #sidebar {
+      width: 230px;
+      min-width: 230px;
+      background: var(--panel);
+      border-left: 0.5px solid var(--border);
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    /* Scrollbar */
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-track { background: transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .section-title {
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .param-group { display: flex; flex-direction: column; gap: 9px; }
+    .param-row { display: flex; flex-direction: column; gap: 3px; }
+    .param-label { display: flex; justify-content: space-between; align-items: center; }
+    .param-name { font-size: 11px; color: var(--text-dim); }
+    .param-value { font-size: 11px; color: var(--text-bright); min-width: 40px; text-align: right; }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 3px;
+      background: var(--track);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--accent-light);
+      cursor: pointer;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--accent-light);
+      cursor: pointer;
+    }
+
+    .divider { height: 0.5px; background: var(--border); flex-shrink: 0; }
+
+    .color-row { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 4px; }
+    .color-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .color-btn:hover { transform: scale(1.12); }
+    .color-btn.active { border-color: white; }
+
+    .mode-row { display: flex; gap: 5px; }
+    .mode-btn {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 10px;
+      font-family: inherit;
+      background: var(--btn-bg);
+      border: 0.5px solid var(--btn-border);
+      color: var(--text-dim);
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+    .mode-btn:hover { background: var(--btn-active-bg); color: var(--btn-active-text); }
+    .mode-btn.active {
+      background: var(--btn-active-bg);
+      border-color: var(--btn-active-border);
+      color: var(--btn-active-text);
+    }
+
+    #animate-btn, #export-btn {
+      width: 100%;
+      padding: 8px;
+      font-family: inherit;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--btn-bg);
+      border: 0.5px solid var(--btn-border);
+      color: var(--text-dim);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #animate-btn:hover, #export-btn:hover { background: var(--btn-active-bg); color: var(--btn-active-text); }
+    #animate-btn.running { border-color: var(--btn-active-border); color: #60b0e0; }
+
+    .btn-group { display: flex; flex-direction: column; gap: 6px; }
+
+    /* Mobile toggle */
+    #sidebar-toggle {
+      display: none;
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 100;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (max-width: 600px) {
+      #sidebar {
+        position: fixed;
+        top: 0; right: 0;
+        height: 100vh;
+        transform: translateX(100%);
+        transition: transform 0.3s;
+        z-index: 50;
+      }
+      #sidebar.open { transform: translateX(0); }
+      #sidebar-toggle { display: flex; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="title-bar">
+      <span>Golden Ratio Spiral Explorer</span>
+      <a href="https://github.com/YOUR_USERNAME" target="_blank">github / FranciscoMendozaLara</a>
+    </div>
+    <canvas id="c"></canvas>
+  </div>
+
+  <div id="sidebar">
+    <div class="param-group">
+      <div class="section-title">Mode</div>
+      <div class="mode-row">
+        <button class="mode-btn active" onclick="setMode('spiral',this)">Spiral</button>
+        <button class="mode-btn" onclick="setMode('julia',this)">Julia</button>
+        <button class="mode-btn" onclick="setMode('lissajous',this)">Lissa</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="param-group">
+      <div class="section-title">Structure</div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Arms</span><span class="param-value" id="v-arms">5</span></div>
+        <input type="range" id="s-arms" min="1" max="12" step="1" value="5" oninput="update('arms',+this.value,'v-arms',this.value)">
+      </div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Turns</span><span class="param-value" id="v-turns">3.0</span></div>
+        <input type="range" id="s-turns" min="0.5" max="8" step="0.1" value="3" oninput="update('turns',+this.value,'v-turns',(+this.value).toFixed(1))">
+      </div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Layers</span><span class="param-value" id="v-layers">4</span></div>
+        <input type="range" id="s-layers" min="1" max="8" step="1" value="4" oninput="update('layers',+this.value,'v-layers',this.value)">
+      </div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">φ ratio</span><span class="param-value" id="v-phi">1.618</span></div>
+        <input type="range" id="s-phi" min="1.1" max="2.5" step="0.001" value="1.618" oninput="update('phi',+this.value,'v-phi',(+this.value).toFixed(3))">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="param-group">
+      <div class="section-title">Chaos</div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Turbulence</span><span class="param-value" id="v-chaos">0.20</span></div>
+        <input type="range" id="s-chaos" min="0" max="1" step="0.01" value="0.2" oninput="update('chaos',+this.value,'v-chaos',(+this.value).toFixed(2))">
+      </div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Curl</span><span class="param-value" id="v-curl">0.50</span></div>
+        <input type="range" id="s-curl" min="0" max="2" step="0.01" value="0.5" oninput="update('curl',+this.value,'v-curl',(+this.value).toFixed(2))">
+      </div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Density</span><span class="param-value" id="v-density">1800</span></div>
+        <input type="range" id="s-density" min="200" max="6000" step="100" value="1800" oninput="update('density',+this.value,'v-density',this.value)">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="param-group">
+      <div class="section-title">Appearance</div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Opacity</span><span class="param-value" id="v-alpha">0.70</span></div>
+        <input type="range" id="s-alpha" min="0.05" max="1" step="0.01" value="0.7" oninput="update('alpha',+this.value,'v-alpha',(+this.value).toFixed(2))">
+      </div>
+      <div class="param-row">
+        <div class="param-label"><span class="param-name">Thickness</span><span class="param-value" id="v-thick">1.2</span></div>
+        <input type="range" id="s-thick" min="0.2" max="4" step="0.1" value="1.2" oninput="update('thick',+this.value,'v-thick',(+this.value).toFixed(1))">
+      </div>
+      <div class="color-row">
+        <div class="color-btn active" style="background:radial-gradient(#60c0ff,#0040a0)" onclick="setColor('blue',this)" title="Blue"></div>
+        <div class="color-btn" style="background:radial-gradient(#ff5060,#800010)" onclick="setColor('red',this)" title="Red"></div>
+        <div class="color-btn" style="background:radial-gradient(#40ffb0,#006030)" onclick="setColor('teal',this)" title="Teal"></div>
+        <div class="color-btn" style="background:radial-gradient(#c080ff,#500090)" onclick="setColor('purple',this)" title="Purple"></div>
+        <div class="color-btn" style="background:radial-gradient(#ffd060,#804000)" onclick="setColor('gold',this)" title="Gold"></div>
+        <div class="color-btn" style="background:radial-gradient(#ffffff,#808080)" onclick="setColor('white',this)" title="Silver"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="btn-group">
+      <button id="animate-btn" onclick="toggleAnimate()">▶ Animate</button>
+      <button id="export-btn" onclick="exportPNG()">↓ Save PNG</button>
+    </div>
+  </div>
+</div>
+
+<button id="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">⚙</button>
+
+<script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  const params = {
+    mode: 'spiral',
+    arms: 5, turns: 3, layers: 4, phi: 1.618,
+    chaos: 0.2, curl: 0.5, density: 1800,
+    alpha: 0.7, thick: 1.2, color: 'blue'
+  };
+
+  const palettes = {
+    blue:   t => `hsl(${200+t*40},90%,${40+t*40}%)`,
+    red:    t => `hsl(${350+t*30},90%,${35+t*40}%)`,
+    teal:   t => `hsl(${160+t*30},85%,${35+t*40}%)`,
+    purple: t => `hsl(${270+t*40},85%,${35+t*45}%)`,
+    gold:   t => `hsl(${35+t*25},95%,${40+t*40}%)`,
+    white:  t => `hsl(210,${10+t*10}%,${60+t*35}%)`
+  };
+
+  let animating = false, animFrame = null, tick = 0;
+
+  function update(key, val, vid, display) {
+    params[key] = val;
+    document.getElementById(vid).textContent = display;
+    if (!animating) draw();
+  }
+
+  function setColor(c, el) {
+    params.color = c;
+    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    if (!animating) draw();
+  }
+
+  function setMode(m, el) {
+    params.mode = m;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    if (!animating) draw();
+  }
+
+  function toggleAnimate() {
+    animating = !animating;
+    const btn = document.getElementById('animate-btn');
+    btn.textContent = animating ? '■ Stop' : '▶ Animate';
+    btn.classList.toggle('running', animating);
+    if (animating) loop();
+    else { cancelAnimationFrame(animFrame); draw(); }
+  }
+
+  function loop() {
+    tick += 0.015;
+    draw(tick);
+    animFrame = requestAnimationFrame(loop);
+  }
+
+  function exportPNG() {
+    const link = document.createElement('a');
+    link.download = `fractal-${params.mode}-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    if (!animating) draw();
+  }
+
+  function draw(t = 0) {
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const R = Math.min(W, H) * 0.44;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, W, H);
+
+    const pal = palettes[params.color];
+    const PHI = params.phi;
+
+    if (params.mode === 'spiral')    drawSpiral(cx, cy, R, pal, PHI, t);
+    else if (params.mode === 'julia') drawJulia(cx, cy, R, pal, t);
+    else                              drawLissajous(cx, cy, R, pal, PHI, t);
+  }
+
+  function drawSpiral(cx, cy, R, pal, PHI, t) {
+    const { density: N, arms, turns, layers, chaos, curl, alpha, thick } = params;
+    for (let layer = 0; layer < layers; layer++) {
+      const ls = Math.pow(1 / PHI, layer);
+      const lr = layer * (Math.PI / layers) + t * (layer % 2 === 0 ? 1 : -1) * 0.3;
+      for (let arm = 0; arm < arms; arm++) {
+        const aa = (arm / arms) * Math.PI * 2;
+        const count = Math.floor(N / layers);
+        for (let i = 0; i < count; i++) {
+          const frac = i / count;
+          const angle = frac * Math.PI * 2 * turns + aa + lr;
+          const goldenR = R * ls * Math.pow(PHI, frac * turns - turns) * 0.6;
+          const blendR = R * ls * frac * 0.4 + goldenR * 0.6;
+          const n1 = chaos * R * 0.15 * Math.sin(frac * 47.3 + arm * 2.1 + layer * 1.7 + t);
+          const n2 = chaos * R * 0.1  * Math.cos(frac * 31.7 + arm * 3.4 + t * 0.7);
+          const ca = angle + curl * frac * Math.PI * 2;
+          const x = cx + (blendR + n1) * Math.cos(ca) + n2;
+          const y = cy + (blendR + n1) * Math.sin(ca) + n2;
+          ctx.globalAlpha = Math.min(alpha * (0.3 + 0.7 * frac) * (1 - layer * 0.15), 1);
+          ctx.fillStyle = pal(frac);
+          ctx.beginPath();
+          ctx.arc(x, y, thick * (0.4 + frac * 0.6), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawJulia(cx, cy, R, pal, t) {
+    const { density: N, turns, chaos, alpha, thick } = params;
+    const scale = R * 2.2;
+    const jcx = 0.355 + 0.05 * Math.sin(t * 0.3);
+    const jcy = -0.355 + 0.05 * Math.cos(t * 0.4);
+    const maxIter = 80;
+    const total = Math.floor(N * 1.5);
+    for (let i = 0; i < total; i++) {
+      const a = (i / total) * Math.PI * 2 * turns;
+      const baseR = R * (i / total) * 0.9;
+      let zx = (baseR * Math.cos(a)) / scale;
+      let zy = (baseR * Math.sin(a)) / scale;
+      const ox = zx, oy = zy;
+      let iter = 0;
+      while (zx * zx + zy * zy < 4 && iter < maxIter) {
+        const xn = zx * zx - zy * zy + jcx;
+        zy = 2 * zx * zy + jcy + chaos * 0.1 * Math.sin(iter * 0.3 + t);
+        zx = xn; iter++;
+      }
+      if (iter < maxIter) {
+        const frac = iter / maxIter;
+        ctx.globalAlpha = alpha * frac;
+        ctx.fillStyle = pal(frac);
+        ctx.beginPath();
+        ctx.arc(cx + ox * scale, cy + oy * scale, thick * (0.3 + frac), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawLissajous(cx, cy, R, pal, PHI, t) {
+    const { density: N, arms, turns, layers, chaos, curl, alpha, thick } = params;
+    for (let layer = 0; layer < layers; layer++) {
+      const ls = Math.pow(1 / PHI, layer);
+      const freqY = Math.round(arms * PHI) + layer;
+      const phase = (layer / layers) * Math.PI + t * (0.4 + layer * 0.1);
+      const count = Math.floor(N * 2 / layers);
+      for (let i = 0; i < count; i++) {
+        const frac = i / count;
+        const theta = frac * Math.PI * 2 * turns;
+        const noise = chaos * 0.2 * Math.sin(theta * 7.3 + layer + t);
+        const sc = 0.5 + curl * 0.3;
+        const x = cx + R * ls * Math.sin(arms * theta + phase + noise) * sc;
+        const y = cy + R * ls * Math.sin(freqY * theta + noise) * sc;
+        ctx.globalAlpha = Math.min(alpha * (0.3 + 0.7 * frac) * (1 - layer * 0.12), 1);
+        ctx.fillStyle = pal(frac);
+        ctx.beginPath();
+        ctx.arc(x, y, thick * (0.3 + frac * 0.7), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+</script>
+</body>
+</html>
