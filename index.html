@@ -4,489 +4,955 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Golden Ratio Spiral Explorer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.getElementById('math-section'),{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #05070f;
-      --panel: #080d18;
-      --border: #1a2a3a;
-      --text-muted: #3a5a7a;
-      --text-dim: #7aa0c0;
-      --text-bright: #c0e0ff;
-      --accent: #3080c0;
-      --accent-light: #60b0f0;
-      --track: #1a3050;
-      --btn-bg: #0d1a28;
-      --btn-border: #2a4060;
-      --btn-active-bg: #1a3a5a;
-      --btn-active-border: #4a90c0;
-      --btn-active-text: #90d0ff;
+      --bg:#05070f; --panel:#080d18; --border:#1a2a3a;
+      --text-muted:#3a5a7a; --text-dim:#7aa0c0; --text-bright:#c0e0ff;
+      --accent:#3080c0; --accent-light:#60b0f0; --track:#1a3050;
+      --btn-bg:#0d1a28; --btn-border:#2a4060;
+      --btn-active-bg:#1a3a5a; --btn-active-border:#4a90c0; --btn-active-text:#90d0ff;
+      --nav-h:42px; --gold:#c8a84b; --gold-dim:#8a6f2e;
     }
+    html { scroll-behavior: smooth; }
+    body { background:var(--bg); color:var(--text-bright); font-family:'Courier New',Courier,monospace; overflow-x:hidden; }
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text-bright);
-      font-family: 'Courier New', Courier, monospace;
-      overflow: hidden;
+    /* NAVBAR */
+    #navbar {
+      position:fixed; top:0; left:0; right:0; height:var(--nav-h);
+      background:rgba(5,7,15,0.88); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      border-bottom:0.5px solid #0f1e30; display:flex; align-items:center;
+      justify-content:space-between; padding:0 20px; z-index:200;
     }
-
-    #app {
-      display: flex;
-      height: 100vh;
-      width: 100vw;
+    #navbar .nav-brand {
+      font-size:10px; letter-spacing:0.18em; color:var(--gold);
+      text-transform:uppercase; text-decoration:none; display:flex; align-items:center; gap:8px;
     }
-
-    #canvas-wrap {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
+    #navbar .nav-brand::before { content:'φ'; font-size:16px; font-style:italic; color:var(--gold); font-family:Georgia,serif; }
+    #nav-links { display:flex; align-items:center; gap:2px; }
+    #nav-links a {
+      font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-muted);
+      text-decoration:none; padding:6px 12px; border-radius:3px; transition:color 0.2s,background 0.2s;
     }
+    #nav-links a:hover { color:var(--text-bright); background:rgba(48,128,192,0.12); }
+    #nav-links a.nav-math { color:var(--gold-dim); }
+    #nav-links a.nav-math:hover { color:var(--gold); background:rgba(200,168,75,0.08); }
 
+    /* EXPLORER */
+    #explorer-section { height:100vh; padding-top:var(--nav-h); display:flex; flex-direction:column; }
+    #app { display:flex; flex:1; width:100vw; overflow:hidden; }
+    #canvas-wrap { flex:1; display:flex; flex-direction:column; min-width:0; }
     #title-bar {
-      padding: 12px 18px;
-      font-size: 10px;
-      letter-spacing: 0.16em;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      border-bottom: 0.5px solid #0f1e30;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
+      padding:10px 18px; font-size:10px; letter-spacing:0.16em; color:var(--text-muted);
+      text-transform:uppercase; border-bottom:0.5px solid #0f1e30;
+      display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
     }
+    #title-bar a { font-size:9px; color:var(--text-muted); text-decoration:none; letter-spacing:0.1em; opacity:0.6; transition:opacity 0.2s; }
+    #title-bar a:hover { opacity:1; }
+    canvas { flex:1; display:block; width:100%; cursor:crosshair; }
 
-    #title-bar a {
-      font-size: 9px;
-      color: var(--text-muted);
-      text-decoration: none;
-      letter-spacing: 0.1em;
-      opacity: 0.6;
-      transition: opacity 0.2s;
+    /* hint for julia */
+    #canvas-hint {
+      position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+      font-size:9px; letter-spacing:0.12em; color:var(--text-muted); opacity:0;
+      pointer-events:none; transition:opacity 0.4s; white-space:nowrap;
     }
-    #title-bar a:hover { opacity: 1; }
+    #canvas-wrap { position:relative; }
+    #canvas-hint.visible { opacity:0.7; }
 
-    canvas {
-      flex: 1;
-      display: block;
-      width: 100%;
-      cursor: crosshair;
-    }
-
+    /* SIDEBAR */
     #sidebar {
-      width: 230px;
-      min-width: 230px;
-      background: var(--panel);
-      border-left: 0.5px solid var(--border);
-      padding: 16px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      overflow-y: auto;
-      flex-shrink: 0;
+      width:230px; min-width:230px; background:var(--panel); border-left:0.5px solid var(--border);
+      padding:16px 14px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex-shrink:0;
     }
-
-    /* Scrollbar */
-    #sidebar::-webkit-scrollbar { width: 4px; }
-    #sidebar::-webkit-scrollbar-track { background: transparent; }
-    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-    .section-title {
-      font-size: 9px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 2px;
-    }
-
-    .param-group { display: flex; flex-direction: column; gap: 9px; }
-    .param-row { display: flex; flex-direction: column; gap: 3px; }
-    .param-label { display: flex; justify-content: space-between; align-items: center; }
-    .param-name { font-size: 11px; color: var(--text-dim); }
-    .param-value { font-size: 11px; color: var(--text-bright); min-width: 40px; text-align: right; }
-
-    input[type=range] {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 3px;
-      background: var(--track);
-      border-radius: 2px;
-      outline: none;
-      cursor: pointer;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 13px;
-      height: 13px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: 2px solid var(--accent-light);
-      cursor: pointer;
-    }
-    input[type=range]::-moz-range-thumb {
-      width: 13px;
-      height: 13px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: 2px solid var(--accent-light);
-      cursor: pointer;
-    }
-
-    .divider { height: 0.5px; background: var(--border); flex-shrink: 0; }
-
-    .color-row { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 4px; }
-    .color-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: border-color 0.2s, transform 0.15s;
-    }
-    .color-btn:hover { transform: scale(1.12); }
-    .color-btn.active { border-color: white; }
-
-    .mode-row { display: flex; gap: 5px; }
+    #sidebar::-webkit-scrollbar { width:4px; }
+    #sidebar::-webkit-scrollbar-track { background:transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+    .section-title { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-muted); margin-bottom:2px; }
+    .param-group { display:flex; flex-direction:column; gap:9px; }
+    .param-row { display:flex; flex-direction:column; gap:3px; }
+    .param-label { display:flex; justify-content:space-between; align-items:center; }
+    .param-name { font-size:11px; color:var(--text-dim); }
+    .param-value { font-size:11px; color:var(--text-bright); min-width:40px; text-align:right; }
+    input[type=range] { -webkit-appearance:none; width:100%; height:3px; background:var(--track); border-radius:2px; outline:none; cursor:pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--accent); border:2px solid var(--accent-light); cursor:pointer; }
+    input[type=range]::-moz-range-thumb { width:13px; height:13px; border-radius:50%; background:var(--accent); border:2px solid var(--accent-light); cursor:pointer; }
+    .divider { height:0.5px; background:var(--border); flex-shrink:0; }
+    .color-row { display:flex; gap:7px; flex-wrap:wrap; margin-top:4px; }
+    .color-btn { width:28px; height:28px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:border-color 0.2s,transform 0.15s; }
+    .color-btn:hover { transform:scale(1.12); }
+    .color-btn.active { border-color:white; }
+    .mode-row { display:flex; gap:5px; flex-wrap:wrap; }
     .mode-btn {
-      flex: 1;
-      padding: 6px 4px;
-      font-size: 10px;
-      font-family: inherit;
-      background: var(--btn-bg);
-      border: 0.5px solid var(--btn-border);
-      color: var(--text-dim);
-      border-radius: 4px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
-      letter-spacing: 0.05em;
+      flex:1; min-width:48px; padding:6px 4px; font-size:10px; font-family:inherit;
+      background:var(--btn-bg); border:0.5px solid var(--btn-border); color:var(--text-dim);
+      border-radius:4px; cursor:pointer; text-align:center; transition:all 0.2s; letter-spacing:0.05em;
     }
-    .mode-btn:hover { background: var(--btn-active-bg); color: var(--btn-active-text); }
-    .mode-btn.active {
-      background: var(--btn-active-bg);
-      border-color: var(--btn-active-border);
-      color: var(--btn-active-text);
-    }
-
+    .mode-btn:hover { background:var(--btn-active-bg); color:var(--btn-active-text); }
+    .mode-btn.active { background:var(--btn-active-bg); border-color:var(--btn-active-border); color:var(--btn-active-text); }
     #animate-btn, #export-btn {
-      width: 100%;
-      padding: 8px;
-      font-family: inherit;
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background: var(--btn-bg);
-      border: 0.5px solid var(--btn-border);
-      color: var(--text-dim);
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s;
+      width:100%; padding:8px; font-family:inherit; font-size:10px; letter-spacing:0.1em;
+      text-transform:uppercase; background:var(--btn-bg); border:0.5px solid var(--btn-border);
+      color:var(--text-dim); border-radius:4px; cursor:pointer; transition:all 0.2s;
     }
-    #animate-btn:hover, #export-btn:hover { background: var(--btn-active-bg); color: var(--btn-active-text); }
-    #animate-btn.running { border-color: var(--btn-active-border); color: #60b0e0; }
+    #animate-btn:hover, #export-btn:hover { background:var(--btn-active-bg); color:var(--btn-active-text); }
+    #animate-btn.running { border-color:var(--btn-active-border); color:#60b0e0; }
+    .btn-group { display:flex; flex-direction:column; gap:6px; }
+    .param-group.hidden { display:none; }
 
-    .btn-group { display: flex; flex-direction: column; gap: 6px; }
+    /* julia c-display */
+    #julia-c-display {
+      font-size:10px; color:var(--gold-dim); letter-spacing:0.06em;
+      padding:6px 8px; background:rgba(0,0,0,0.3); border-radius:3px;
+      border:0.5px solid var(--border); text-align:center;
+    }
 
-    /* Mobile toggle */
+    /* MOBILE */
     #sidebar-toggle {
-      display: none;
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      z-index: 100;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: none;
-      color: white;
-      font-size: 18px;
-      cursor: pointer;
-      align-items: center;
-      justify-content: center;
+      display:none; position:fixed; bottom:16px; right:16px; z-index:100;
+      width:44px; height:44px; border-radius:50%; background:var(--accent);
+      border:none; color:white; font-size:18px; cursor:pointer; align-items:center; justify-content:center;
     }
 
-    @media (max-width: 600px) {
-      #sidebar {
-        position: fixed;
-        top: 0; right: 0;
-        height: 100vh;
-        transform: translateX(100%);
-        transition: transform 0.3s;
-        z-index: 50;
-      }
-      #sidebar.open { transform: translateX(0); }
-      #sidebar-toggle { display: flex; }
+    /* MATH SECTION */
+    #math-section { background:var(--bg); padding:80px 0 100px; border-top:0.5px solid #0d1e30; position:relative; overflow:hidden; }
+    #math-section::before { content:'φ'; position:absolute; right:-20px; top:40px; font-size:340px; font-family:Georgia,serif; font-style:italic; color:rgba(200,168,75,0.03); pointer-events:none; line-height:1; }
+    .math-container { max-width:860px; margin:0 auto; padding:0 40px; }
+    .math-header { text-align:center; margin-bottom:64px; }
+    .math-header .eyebrow { font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:14px; }
+    .math-header h2 { font-family:Georgia,'Times New Roman',serif; font-size:32px; font-weight:normal; font-style:italic; color:var(--text-bright); letter-spacing:0.02em; margin-bottom:16px; }
+    .math-header .subtitle { font-size:11px; color:var(--text-muted); letter-spacing:0.08em; line-height:1.7; max-width:500px; margin:0 auto; }
+    .math-card { background:var(--panel); border:0.5px solid var(--border); border-radius:6px; padding:36px 40px; margin-bottom:24px; position:relative; transition:border-color 0.3s; }
+    .math-card:hover { border-color:#2a4a6a; }
+    .math-card .card-num { position:absolute; top:20px; right:24px; font-size:9px; letter-spacing:0.14em; color:var(--text-muted); opacity:0.5; }
+    .math-card h3 { font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:10px; }
+    .math-card .card-title { font-family:Georgia,serif; font-size:18px; font-style:italic; color:var(--text-bright); margin-bottom:18px; }
+    .math-card p { font-size:12px; color:var(--text-dim); line-height:1.8; letter-spacing:0.03em; margin-bottom:20px; }
+    .math-card p:last-child { margin-bottom:0; }
+    .math-card .eq-block { background:rgba(0,0,0,0.35); border-left:2px solid var(--gold-dim); border-radius:0 4px 4px 0; padding:16px 24px; margin:20px 0; overflow-x:auto; }
+    .math-card .eq-block .katex-display { margin:0; }
+    .math-card .eq-label { font-size:9px; letter-spacing:0.12em; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; }
+    .hl { color:var(--gold); font-style:italic; font-family:Georgia,serif; }
+    .fib-table { width:100%; border-collapse:collapse; font-size:11px; margin:20px 0; }
+    .fib-table th { font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted); padding:8px 12px; text-align:left; border-bottom:0.5px solid var(--border); }
+    .fib-table td { padding:7px 12px; color:var(--text-dim); border-bottom:0.5px solid #0d1a28; font-variant-numeric:tabular-nums; }
+    .fib-table tr:last-child td { border-bottom:none; }
+    .fib-table td.ratio-col { color:var(--gold); }
+    .fib-table td.highlight { color:var(--text-bright); }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start; }
+    @media(max-width:640px){ .two-col{grid-template-columns:1fr;} }
+    .scroll-hint { text-align:center; padding:10px 0 0; font-size:9px; letter-spacing:0.14em; color:var(--text-muted); opacity:0.5; }
+
+    /* ABOUT / CONTACT */
+    #about-section, #contact-section { background:var(--panel); border-top:0.5px solid var(--border); padding:72px 0; }
+    .section-container { max-width:680px; margin:0 auto; padding:0 40px; text-align:center; }
+    .section-container .eyebrow { font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--text-muted); margin-bottom:14px; }
+    .section-container h2 { font-family:Georgia,serif; font-size:26px; font-weight:normal; font-style:italic; color:var(--text-bright); margin-bottom:20px; }
+    .section-container p { font-size:12px; color:var(--text-dim); line-height:1.9; letter-spacing:0.04em; margin-bottom:14px; }
+    .tag-row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:24px; }
+    .tag { font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted); border:0.5px solid var(--border); padding:5px 12px; border-radius:3px; }
+    .contact-links { display:flex; flex-direction:column; gap:12px; margin-top:28px; align-items:center; }
+    .contact-link { font-size:11px; color:var(--text-dim); text-decoration:none; letter-spacing:0.08em; padding:10px 24px; border:0.5px solid var(--btn-border); border-radius:4px; transition:all 0.2s; display:inline-block; min-width:220px; }
+    .contact-link:hover { color:var(--text-bright); border-color:var(--accent); background:rgba(48,128,192,0.07); }
+    .contact-link span { margin-right:10px; opacity:0.6; }
+
+    /* FOOTER */
+    footer { background:var(--bg); border-top:0.5px solid #0d1822; padding:20px 40px; display:flex; align-items:center; justify-content:space-between; font-size:9px; letter-spacing:0.12em; color:var(--text-muted); opacity:0.6; }
+
+    /* BACK TO TOP */
+    #back-to-top {
+      position:fixed; bottom:24px; left:24px; z-index:300;
+      width:38px; height:38px; border-radius:50%; background:var(--btn-bg);
+      border:0.5px solid var(--btn-border); color:var(--text-dim); font-size:14px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity 0.3s,border-color 0.2s,color 0.2s,transform 0.2s;
+    }
+    #back-to-top.visible { opacity:1; pointer-events:auto; }
+    #back-to-top:hover { border-color:var(--accent); color:var(--text-bright); transform:translateY(-2px); }
+
+    @media(max-width:600px){
+      #sidebar { position:fixed; top:0; right:0; height:100vh; transform:translateX(100%); transition:transform 0.3s; z-index:50; }
+      #sidebar.open { transform:translateX(0); }
+      #sidebar-toggle { display:flex; }
+      .math-container { padding:0 20px; }
+      .math-card { padding:24px 20px; }
+      .section-container { padding:0 20px; }
+      footer { flex-direction:column; gap:8px; text-align:center; }
+      #nav-links a { padding:6px 8px; }
     }
   </style>
 </head>
 <body>
-<div id="app">
-  <div id="canvas-wrap">
-    <div id="title-bar">
-      <span>Golden Ratio Spiral Explorer</span>
-      <a href="https://github.com/FranciscoMendozaLara" target="_blank">github / FranciscoMendozaLara</a>
-    </div>
-    <canvas id="c"></canvas>
+
+<nav id="navbar">
+  <a href="#explorer-section" class="nav-brand">Golden Ratio Explorer</a>
+  <div id="nav-links">
+    <a href="#explorer-section">Explorer</a>
+    <a href="#math-section" class="nav-math">Mathematics</a>
+    <a href="#about-section">About</a>
+    <a href="#contact-section">Contact</a>
   </div>
+</nav>
 
-  <div id="sidebar">
-    <div class="param-group">
-      <div class="section-title">Mode</div>
-      <div class="mode-row">
-        <button class="mode-btn active" onclick="setMode('spiral',this)">Spiral</button>
-        <button class="mode-btn" onclick="setMode('julia',this)">Julia</button>
-        <button class="mode-btn" onclick="setMode('lissajous',this)">Lissa</button>
+<section id="explorer-section">
+  <div id="app">
+    <div id="canvas-wrap">
+      <div id="title-bar">
+        <span>Golden Ratio Spiral Explorer</span>
+        <a href="https://github.com/FranciscoMendozaLara" target="_blank">github / FranciscoMendozaLara</a>
       </div>
+      <canvas id="c"></canvas>
+      <div id="canvas-hint">click to set Julia c-constant</div>
     </div>
 
-    <div class="divider"></div>
+    <div id="sidebar">
+      <!-- MODE -->
+      <div class="param-group">
+        <div class="section-title">Mode</div>
+        <div class="mode-row">
+          <button class="mode-btn active" onclick="setMode('spiral',this)">Spiral</button>
+          <button class="mode-btn" onclick="setMode('julia',this)">Julia</button>
+          <button class="mode-btn" onclick="setMode('lissajous',this)">Lissa</button>
+          <button class="mode-btn" onclick="setMode('torus',this)">Torus</button>
+          <button class="mode-btn" onclick="setMode('donut',this)">Donut</button>
+        </div>
+      </div>
 
-    <div class="param-group">
-      <div class="section-title">Structure</div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Arms</span><span class="param-value" id="v-arms">5</span></div>
-        <input type="range" id="s-arms" min="1" max="12" step="1" value="5" oninput="update('arms',+this.value,'v-arms',this.value)">
-      </div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Turns</span><span class="param-value" id="v-turns">3.0</span></div>
-        <input type="range" id="s-turns" min="0.5" max="8" step="0.1" value="3" oninput="update('turns',+this.value,'v-turns',(+this.value).toFixed(1))">
-      </div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Layers</span><span class="param-value" id="v-layers">4</span></div>
-        <input type="range" id="s-layers" min="1" max="8" step="1" value="4" oninput="update('layers',+this.value,'v-layers',this.value)">
-      </div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">φ ratio</span><span class="param-value" id="v-phi">1.618</span></div>
-        <input type="range" id="s-phi" min="1.1" max="2.5" step="0.001" value="1.618" oninput="update('phi',+this.value,'v-phi',(+this.value).toFixed(3))">
-      </div>
-    </div>
+      <div class="divider"></div>
 
-    <div class="divider"></div>
+      <!-- STRUCTURE — spiral/lissajous/torus -->
+      <div class="param-group" id="grp-structure">
+        <div class="section-title">Structure</div>
+        <div class="param-row" id="row-arms">
+          <div class="param-label"><span class="param-name">Arms</span><span class="param-value" id="v-arms">5</span></div>
+          <input type="range" id="s-arms" min="1" max="12" step="1" value="5" oninput="update('arms',+this.value,'v-arms',this.value)">
+        </div>
+        <div class="param-row" id="row-turns">
+          <div class="param-label"><span class="param-name">Turns</span><span class="param-value" id="v-turns">3.0</span></div>
+          <input type="range" id="s-turns" min="0.5" max="8" step="0.1" value="3" oninput="update('turns',+this.value,'v-turns',(+this.value).toFixed(1))">
+        </div>
+        <div class="param-row" id="row-layers">
+          <div class="param-label"><span class="param-name">Layers</span><span class="param-value" id="v-layers">4</span></div>
+          <input type="range" id="s-layers" min="1" max="8" step="1" value="4" oninput="update('layers',+this.value,'v-layers',this.value)">
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">φ ratio</span><span class="param-value" id="v-phi">1.618</span></div>
+          <input type="range" id="s-phi" min="1.1" max="2.5" step="0.001" value="1.618" oninput="update('phi',+this.value,'v-phi',(+this.value).toFixed(3))">
+        </div>
+      </div>
 
-    <div class="param-group">
-      <div class="section-title">Chaos</div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Turbulence</span><span class="param-value" id="v-chaos">0.20</span></div>
-        <input type="range" id="s-chaos" min="0" max="1" step="0.01" value="0.2" oninput="update('chaos',+this.value,'v-chaos',(+this.value).toFixed(2))">
-      </div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Curl</span><span class="param-value" id="v-curl">0.50</span></div>
-        <input type="range" id="s-curl" min="0" max="2" step="0.01" value="0.5" oninput="update('curl',+this.value,'v-curl',(+this.value).toFixed(2))">
-      </div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Density</span><span class="param-value" id="v-density">1800</span></div>
-        <input type="range" id="s-density" min="200" max="6000" step="100" value="1800" oninput="update('density',+this.value,'v-density',this.value)">
-      </div>
-    </div>
+      <div class="divider" id="div-structure"></div>
 
-    <div class="divider"></div>
-
-    <div class="param-group">
-      <div class="section-title">Appearance</div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Opacity</span><span class="param-value" id="v-alpha">0.70</span></div>
-        <input type="range" id="s-alpha" min="0.05" max="1" step="0.01" value="0.7" oninput="update('alpha',+this.value,'v-alpha',(+this.value).toFixed(2))">
+      <!-- JULIA CONTROLS -->
+      <div class="param-group hidden" id="grp-julia">
+        <div class="section-title">Julia Set</div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Iterations</span><span class="param-value" id="v-maxiter">120</span></div>
+          <input type="range" id="s-maxiter" min="20" max="400" step="10" value="120" oninput="update('maxIter',+this.value,'v-maxiter',this.value)">
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Zoom</span><span class="param-value" id="v-zoom">1.0</span></div>
+          <input type="range" id="s-zoom" min="0.3" max="4" step="0.1" value="1" oninput="update('zoom',+this.value,'v-zoom',(+this.value).toFixed(1))">
+        </div>
+        <div id="julia-c-display">c = −0.7269 + 0.1889i</div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:0.08em;margin-top:2px;text-align:center">click canvas to move c</div>
       </div>
-      <div class="param-row">
-        <div class="param-label"><span class="param-name">Thickness</span><span class="param-value" id="v-thick">1.2</span></div>
-        <input type="range" id="s-thick" min="0.2" max="4" step="0.1" value="1.2" oninput="update('thick',+this.value,'v-thick',(+this.value).toFixed(1))">
-      </div>
-      <div class="color-row">
-        <div class="color-btn active" style="background:radial-gradient(#60c0ff,#0040a0)" onclick="setColor('blue',this)" title="Blue"></div>
-        <div class="color-btn" style="background:radial-gradient(#ff5060,#800010)" onclick="setColor('red',this)" title="Red"></div>
-        <div class="color-btn" style="background:radial-gradient(#40ffb0,#006030)" onclick="setColor('teal',this)" title="Teal"></div>
-        <div class="color-btn" style="background:radial-gradient(#c080ff,#500090)" onclick="setColor('purple',this)" title="Purple"></div>
-        <div class="color-btn" style="background:radial-gradient(#ffd060,#804000)" onclick="setColor('gold',this)" title="Gold"></div>
-        <div class="color-btn" style="background:radial-gradient(#ffffff,#808080)" onclick="setColor('white',this)" title="Silver"></div>
-      </div>
-    </div>
 
-    <div class="divider"></div>
+      <div class="divider hidden" id="div-julia"></div>
 
-    <div class="btn-group">
-      <button id="animate-btn" onclick="toggleAnimate()">▶ Animate</button>
-      <button id="export-btn" onclick="exportPNG()">↓ Save PNG</button>
+      <!-- TORUS CONTROLS -->
+      <div class="param-group hidden" id="grp-torus">
+        <div class="section-title">Torus</div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Major R</span><span class="param-value" id="v-torusR">2.5</span></div>
+          <input type="range" id="s-torusR" min="1.2" max="4" step="0.1" value="2.5" oninput="update('torusR',+this.value,'v-torusR',(+this.value).toFixed(1))">
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Minor r</span><span class="param-value" id="v-torusr">1.0</span></div>
+          <input type="range" id="s-torusr" min="0.2" max="2" step="0.1" value="1.0" oninput="update('torusr',+this.value,'v-torusr',(+this.value).toFixed(1))">
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Points</span><span class="param-value" id="v-torusN">4000</span></div>
+          <input type="range" id="s-torusN" min="500" max="12000" step="500" value="4000" oninput="update('torusN',+this.value,'v-torusN',this.value)">
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Tilt X</span><span class="param-value" id="v-tiltX">0.40</span></div>
+          <input type="range" id="s-tiltX" min="-1.57" max="1.57" step="0.01" value="0.4" oninput="update('tiltX',+this.value,'v-tiltX',(+this.value).toFixed(2))">
+        </div>
+      </div>
+
+      <div class="divider hidden" id="div-torus"></div>
+
+      <!-- CHAOS — all modes except julia -->
+      <div class="param-group" id="grp-chaos">
+        <div class="section-title">Chaos</div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Turbulence</span><span class="param-value" id="v-chaos">0.20</span></div>
+          <input type="range" id="s-chaos" min="0" max="1" step="0.01" value="0.2" oninput="update('chaos',+this.value,'v-chaos',(+this.value).toFixed(2))">
+        </div>
+        <div class="param-row" id="row-curl">
+          <div class="param-label"><span class="param-name">Curl</span><span class="param-value" id="v-curl">0.50</span></div>
+          <input type="range" id="s-curl" min="0" max="2" step="0.01" value="0.5" oninput="update('curl',+this.value,'v-curl',(+this.value).toFixed(2))">
+        </div>
+        <div class="param-row" id="row-density">
+          <div class="param-label"><span class="param-name">Density</span><span class="param-value" id="v-density">1800</span></div>
+          <input type="range" id="s-density" min="200" max="6000" step="100" value="1800" oninput="update('density',+this.value,'v-density',this.value)">
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- APPEARANCE -->
+      <div class="param-group">
+        <div class="section-title">Appearance</div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Opacity</span><span class="param-value" id="v-alpha">0.70</span></div>
+          <input type="range" id="s-alpha" min="0.05" max="1" step="0.01" value="0.7" oninput="update('alpha',+this.value,'v-alpha',(+this.value).toFixed(2))">
+        </div>
+        <div class="param-row" id="row-thick">
+          <div class="param-label"><span class="param-name">Thickness</span><span class="param-value" id="v-thick">1.2</span></div>
+          <input type="range" id="s-thick" min="0.2" max="4" step="0.1" value="1.2" oninput="update('thick',+this.value,'v-thick',(+this.value).toFixed(1))">
+        </div>
+        <div class="color-row">
+          <div class="color-btn active" style="background:radial-gradient(#60c0ff,#0040a0)" onclick="setColor('blue',this)" title="Blue"></div>
+          <div class="color-btn" style="background:radial-gradient(#ff5060,#800010)" onclick="setColor('red',this)" title="Red"></div>
+          <div class="color-btn" style="background:radial-gradient(#40ffb0,#006030)" onclick="setColor('teal',this)" title="Teal"></div>
+          <div class="color-btn" style="background:radial-gradient(#c080ff,#500090)" onclick="setColor('purple',this)" title="Purple"></div>
+          <div class="color-btn" style="background:radial-gradient(#ffd060,#804000)" onclick="setColor('gold',this)" title="Gold"></div>
+          <div class="color-btn" style="background:radial-gradient(#ffffff,#808080)" onclick="setColor('white',this)" title="Silver"></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ANIMATION -->
+      <div class="param-group">
+        <div class="section-title">Animation</div>
+        <div class="param-row">
+          <div class="param-label"><span class="param-name">Speed</span><span class="param-value" id="v-speed">1.0×</span></div>
+          <input type="range" id="s-speed" min="0.1" max="5" step="0.1" value="1"
+            oninput="params.speed=+this.value; document.getElementById('v-speed').textContent=(+this.value).toFixed(1)+'×'">
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="btn-group">
+        <button id="animate-btn" onclick="toggleAnimate()">▶ Animate</button>
+        <button id="export-btn" onclick="exportPNG()">↓ Save PNG</button>
+      </div>
     </div>
   </div>
-</div>
+  <div class="scroll-hint">↓ scroll to explore the mathematics</div>
+</section>
 
+<!-- MATH SECTION -->
+<section id="math-section">
+  <div class="math-container">
+    <div class="math-header">
+      <div class="eyebrow">The Mathematics Behind the Explorer</div>
+      <h2>Order hidden in infinite recursion</h2>
+      <p class="subtitle">Every spiral, fractal, and surface you see is governed by a single irrational number that has fascinated mathematicians, artists, and architects for millennia.</p>
+    </div>
+
+    <div class="math-card">
+      <span class="card-num">01</span>
+      <h3>The Golden Ratio</h3>
+      <div class="card-title">Defining φ</div>
+      <p>The golden ratio <span class="hl">φ</span> is the unique positive number satisfying a deceptively simple self-referential property: the ratio of the whole to the larger part equals the ratio of the larger part to the smaller.</p>
+      <div class="eq-block">
+        <div class="eq-label">Definition</div>
+        $$\frac{a+b}{a} = \frac{a}{b} = \varphi$$
+      </div>
+      <p>Substituting $b = 1$ and $a = \varphi$ yields the characteristic equation:</p>
+      <div class="eq-block">
+        <div class="eq-label">Characteristic equation</div>
+        $$\varphi^2 = \varphi + 1 \quad \Longrightarrow \quad \varphi = \frac{1 + \sqrt{5}}{2} \approx 1.6180339887\ldots$$
+      </div>
+      <p>This number is irrational and in fact the <em>most</em> irrational number in a precise sense — it is the hardest real number to approximate well by rationals, which is why spirals built on φ pack objects most efficiently without interference patterns.</p>
+    </div>
+
+    <div class="math-card">
+      <span class="card-num">02</span>
+      <h3>Fibonacci Sequence</h3>
+      <div class="card-title">The discrete road to φ</div>
+      <p>The Fibonacci sequence is defined by $F_n = F_{n-1} + F_{n-2}$ with seeds $F_0 = 0,\ F_1 = 1$. The ratio of consecutive terms converges to <span class="hl">φ</span>.</p>
+      <div class="two-col">
+        <div>
+          <div class="eq-block">
+            <div class="eq-label">Binet's closed form</div>
+            $$F_n = \frac{\varphi^n - \psi^n}{\sqrt{5}}, \quad \psi = \frac{1-\sqrt{5}}{2}$$
+          </div>
+          <div class="eq-block">
+            <div class="eq-label">Convergence</div>
+            $$\lim_{n \to \infty} \frac{F_{n+1}}{F_n} = \varphi$$
+          </div>
+        </div>
+        <div>
+          <table class="fib-table">
+            <thead><tr><th>n</th><th>F(n)</th><th class="ratio-col">ratio</th></tr></thead>
+            <tbody>
+              <tr><td>2</td><td class="highlight">1</td><td class="ratio-col">1.000</td></tr>
+              <tr><td>3</td><td class="highlight">2</td><td class="ratio-col">2.000</td></tr>
+              <tr><td>5</td><td class="highlight">5</td><td class="ratio-col">1.667</td></tr>
+              <tr><td>8</td><td class="highlight">13</td><td class="ratio-col">1.625</td></tr>
+              <tr><td>13</td><td class="highlight">233</td><td class="ratio-col">1.619</td></tr>
+              <tr><td>∞</td><td class="highlight">…</td><td class="ratio-col">1.61803…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="math-card">
+      <span class="card-num">03</span>
+      <h3>The Logarithmic Spiral</h3>
+      <div class="card-title">Geometry of self-similarity</div>
+      <p>A logarithmic spiral grows outward at a constant angle to any radial line. The <strong>golden spiral</strong> is the special case where the radius grows by exactly φ after each quarter-turn.</p>
+      <div class="eq-block">
+        <div class="eq-label">Polar form</div>
+        $$r(\theta) = a \cdot e^{b\theta}, \qquad b = \frac{2\ln\varphi}{\pi} \approx 0.3063\ldots$$
+      </div>
+      <p>The explorer renders this relationship directly — the <strong>φ ratio</strong> slider controls the base of the exponential, morphing the spiral away from the golden ideal.</p>
+      <div class="eq-block">
+        <div class="eq-label">Implementation</div>
+        $$r_i = R \cdot \varphi^{-\ell} \cdot \varphi^{\,f \cdot T - T}, \quad f = \frac{i}{N},\quad \ell = \text{layer}$$
+      </div>
+    </div>
+
+    <div class="math-card">
+      <span class="card-num">04</span>
+      <h3>Julia Sets</h3>
+      <div class="card-title">Complex iteration and escape-time dynamics</div>
+      <p>For a fixed complex constant $c$, the Julia set is the boundary between starting points $z_0$ whose orbits under $z \mapsto z^2 + c$ remain bounded, and those that escape to infinity. The explorer scans every pixel as a starting point and colors by escape speed — the true escape-time algorithm.</p>
+      <div class="eq-block">
+        <div class="eq-label">Iteration & smooth coloring</div>
+        $$z_{n+1} = z_n^2 + c, \qquad \nu = k - \frac{\ln\ln|z_k|}{\ln 2}$$
+      </div>
+      <p>Click anywhere on the canvas to move the constant $c$, watching the fractal's shape deform continuously. Points near the boundary of the Mandelbrot set produce the most intricate Julia sets.</p>
+    </div>
+
+    <div class="math-card">
+      <span class="card-num">05</span>
+      <h3>The Torus &amp; Golden Distribution</h3>
+      <div class="card-title">φ on a curved surface</div>
+      <p>A torus with major radius $R$ and minor radius $r$ is parametrized by two angles $(\theta, \phi)$. Points are distributed using the <em>golden angle</em> — the irrational rotation that avoids clustering — so the surface is filled as uniformly as possible.</p>
+      <div class="eq-block">
+        <div class="eq-label">Torus parametrization</div>
+        $$\mathbf{x}(\theta,\phi) = \begin{pmatrix}(R + r\cos\phi)\cos\theta \\ (R + r\cos\phi)\sin\theta \\ r\sin\phi\end{pmatrix}$$
+      </div>
+      <div class="eq-block">
+        <div class="eq-label">Golden angle distribution</div>
+        $$\theta_k = 2\pi k / \varphi^2, \quad \phi_k = 2\pi k / \varphi$$
+      </div>
+      <p>The torus is then projected onto the 2D canvas using a rotation matrix, giving the illusion of 3D depth with hidden-surface depth cueing.</p>
+    </div>
+
+    <div class="math-card">
+      <span class="card-num">06</span>
+      <h3>Solid Donut Rendering</h3>
+      <div class="card-title">3D shading on a curved surface</div>
+      <p>The <strong>Donut</strong> mode renders the torus as a proper solid 3D object using the <em>painter's algorithm</em> — the surface is tessellated into small quadrilateral faces, each shaded with a Blinn–Phong lighting model that combines ambient, diffuse, and specular components.</p>
+      <div class="eq-block">
+        <div class="eq-label">Blinn–Phong shading</div>
+        $$I = k_a + k_d\,(\hat{n}\cdot\hat{L}) + k_s\,(\hat{n}\cdot\hat{h})^{\,\alpha}$$
+        $$\hat{h} = \frac{\hat{L}+\hat{V}}{|\hat{L}+\hat{V}|} \quad \text{(halfway vector)}$$
+      </div>
+      <p>Each face's surface normal $\hat{n}$ is computed analytically from the torus parametrization, giving smooth shading across the surface. The colour hue cycles around the ring (the $\phi$ angle), so the donut reads as a gradient wrapping the tube.</p>
+    </div>
+
+    <div class="math-card">
+      <span class="card-num">07</span>
+      <h3>Lissajous Figures</h3>
+      <div class="card-title">Harmonic composition in the plane</div>
+      <p>Lissajous curves arise from two perpendicular sinusoidal oscillations. Because the y-frequency uses $\lfloor A_\text{arms} \cdot \varphi \rfloor$, which is irrational relative to the x-frequency, the curve never perfectly closes — filling a region densely instead.</p>
+      <div class="eq-block">
+        <div class="eq-label">Explorer implementation</div>
+        $$x = R\,\varphi^{-\ell}\sin(p\,\theta + \phi_\ell)\cdot s, \quad y = R\,\varphi^{-\ell}\sin(q_\ell\,\theta)\cdot s$$
+        $$q_\ell = \lfloor p\,\varphi \rfloor + \ell, \quad s = 0.5 + 0.3\,\text{curl}$$
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about-section">
+  <div class="section-container">
+    <div class="eyebrow">About</div>
+    <h2>Why the golden ratio?</h2>
+    <p>This explorer started as a question: what does mathematics <em>look like</em> when you make it interactive? The golden ratio felt like the right answer — it sits at the intersection of number theory, geometry, biology, and art.</p>
+    <p>Every parameter has a direct mathematical meaning. Moving a slider is moving a variable in a live equation. The torus + Julia mode in particular connects topology, complex analysis, and fractal geometry in one image.</p>
+    <div class="tag-row">
+      <span class="tag">Canvas API</span>
+      <span class="tag">Complex Analysis</span>
+      <span class="tag">Differential Geometry</span>
+      <span class="tag">Number Theory</span>
+      <span class="tag">Generative Art</span>
+      <span class="tag">KaTeX</span>
+    </div>
+  </div>
+</section>
+
+<section id="contact-section">
+  <div class="section-container">
+    <div class="eyebrow">Contact</div>
+    <h2>Get in touch</h2>
+    <p>Have ideas for new modes, spot a bug, or want to collaborate? Reach out through any of the channels below.</p>
+    <div class="contact-links">
+      <a class="contact-link" href="https://github.com/FranciscoMendozaLara" target="_blank"><span>⌥</span>GitHub / FranciscoMendozaLara</a>
+      <a class="contact-link" href="/cdn-cgi/l/email-protection#9ae3f5efe8dafff7fbf3f6b4f9f5f7"><span>@</span><span class="__cf_email__" data-cfemail="5c2533292e1c39313d3530723f3331">[email&#160;protected]</span></a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>Golden Ratio Spiral Explorer</span>
+  <span>φ = 1.6180339887…</span>
+</footer>
+
+<button id="back-to-top" title="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 <button id="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">⚙</button>
 
-<script>
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
 
-  const params = {
-    mode: 'spiral',
-    arms: 5, turns: 3, layers: 4, phi: 1.618,
-    chaos: 0.2, curl: 0.5, density: 1800,
-    alpha: 0.7, thick: 1.2, color: 'blue'
+const params = {
+  mode: 'spiral',
+  arms: 5, turns: 3, layers: 4, phi: 1.618,
+  chaos: 0.2, curl: 0.5, density: 1800,
+  alpha: 0.7, thick: 1.2, color: 'blue',
+  speed: 1.0,
+  maxIter: 120, zoom: 1.0,
+  juliaC: { x: -0.7269, y: 0.1889 },
+  torusR: 2.5, torusr: 1.0, torusN: 4000, tiltX: 0.4
+};
+
+const palettes = {
+  blue:   t => `hsl(${200+t*40},90%,${40+t*40}%)`,
+  red:    t => `hsl(${350+t*30},90%,${35+t*40}%)`,
+  teal:   t => `hsl(${160+t*30},85%,${35+t*40}%)`,
+  purple: t => `hsl(${270+t*40},85%,${35+t*45}%)`,
+  gold:   t => `hsl(${35+t*25},95%,${40+t*40}%)`,
+  white:  t => `hsl(210,${10+t*10}%,${60+t*35}%)`
+};
+
+// palette as [r,g,b] for ImageData use
+function palRGB(name, t) {
+  const h = name === 'blue'   ? 200+t*40
+           : name === 'red'   ? 350+t*30
+           : name === 'teal'  ? 160+t*30
+           : name === 'purple'? 270+t*40
+           : name === 'gold'  ? 35+t*25
+           :                   210;
+  const s = name === 'white' ? 10+t*10 : 85+t*5;
+  const l = name === 'white' ? 60+t*35 : 40+t*40;
+  return hslToRgb(h/360, s/100, l/100);
+}
+
+function hslToRgb(h, s, l) {
+  h = ((h % 1) + 1) % 1;
+  const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+  const p = 2*l - q;
+  const hue2rgb = (p,q,t) => {
+    if(t<0) t+=1; if(t>1) t-=1;
+    if(t<1/6) return p+(q-p)*6*t;
+    if(t<1/2) return q;
+    if(t<2/3) return p+(q-p)*(2/3-t)*6;
+    return p;
   };
+  return [
+    Math.round(hue2rgb(p,q,h+1/3)*255),
+    Math.round(hue2rgb(p,q,h)*255),
+    Math.round(hue2rgb(p,q,h-1/3)*255)
+  ];
+}
 
-  const palettes = {
-    blue:   t => `hsl(${200+t*40},90%,${40+t*40}%)`,
-    red:    t => `hsl(${350+t*30},90%,${35+t*40}%)`,
-    teal:   t => `hsl(${160+t*30},85%,${35+t*40}%)`,
-    purple: t => `hsl(${270+t*40},85%,${35+t*45}%)`,
-    gold:   t => `hsl(${35+t*25},95%,${40+t*40}%)`,
-    white:  t => `hsl(210,${10+t*10}%,${60+t*35}%)`
+let animating = false, animFrame = null, tick = 0;
+
+function update(key, val, vid, display) {
+  params[key] = val;
+  document.getElementById(vid).textContent = display;
+  if (!animating) draw();
+}
+
+function setColor(c, el) {
+  params.color = c;
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (!animating) draw();
+}
+
+function setMode(m, el) {
+  params.mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  updateSidebar(m);
+  if (!animating) draw();
+}
+
+function updateSidebar(mode) {
+  const show = (id, vis) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !vis);
   };
+  const isSpiral = mode === 'spiral';
+  const isLissa = mode === 'lissajous';
+  const isJulia = mode === 'julia';
+  const isTorus = mode === 'torus';
+  const isTJ    = mode === 'donut';
 
-  let animating = false, animFrame = null, tick = 0;
+  show('grp-structure', isSpiral || isLissa || isTorus || isTJ);
+  show('div-structure', isSpiral || isLissa || isTorus || isTJ);
+  show('row-arms', isSpiral || isLissa);
+  show('row-turns', isSpiral || isLissa);
+  show('row-layers', isSpiral || isLissa);
 
-  function update(key, val, vid, display) {
-    params[key] = val;
-    document.getElementById(vid).textContent = display;
-    if (!animating) draw();
-  }
+  show('grp-julia', isJulia || isTJ);
+  show('div-julia', isJulia || isTJ);
 
-  function setColor(c, el) {
-    params.color = c;
-    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-    el.classList.add('active');
-    if (!animating) draw();
-  }
+  show('grp-torus', isTorus || isTJ);
+  show('div-torus', isTorus || isTJ);
 
-  function setMode(m, el) {
-    params.mode = m;
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    el.classList.add('active');
-    if (!animating) draw();
-  }
+  show('grp-chaos', !isJulia);
+  show('row-curl', isSpiral || isLissa);
+  show('row-density', isSpiral || isLissa);
+  show('row-thick', !isJulia && !isTorus && !isTJ);
 
-  function toggleAnimate() {
-    animating = !animating;
-    const btn = document.getElementById('animate-btn');
-    btn.textContent = animating ? '■ Stop' : '▶ Animate';
-    btn.classList.toggle('running', animating);
-    if (animating) loop();
-    else { cancelAnimationFrame(animFrame); draw(); }
-  }
+  const hint = document.getElementById('canvas-hint');
+  hint.classList.toggle('visible', isJulia || isTJ);
+}
 
-  function loop() {
-    tick += 0.015;
-    draw(tick);
-    animFrame = requestAnimationFrame(loop);
-  }
+function toggleAnimate() {
+  animating = !animating;
+  const btn = document.getElementById('animate-btn');
+  btn.textContent = animating ? '■ Stop' : '▶ Animate';
+  btn.classList.toggle('running', animating);
+  if (animating) loop();
+  else { cancelAnimationFrame(animFrame); draw(); }
+}
 
-  function exportPNG() {
-    const link = document.createElement('a');
-    link.download = `fractal-${params.mode}-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  }
+function loop() {
+  tick += 0.015 * params.speed;
+  draw(tick);
+  animFrame = requestAnimationFrame(loop);
+}
 
-  function resize() {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    if (!animating) draw();
-  }
+function exportPNG() {
+  const link = document.createElement('a');
+  link.download = `spiral-${params.mode}-${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
 
-  function draw(t = 0) {
-    const W = canvas.width, H = canvas.height;
-    const cx = W / 2, cy = H / 2;
-    const R = Math.min(W, H) * 0.44;
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#05070f';
-    ctx.fillRect(0, 0, W, H);
+function resize() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  if (!animating) draw();
+}
 
-    const pal = palettes[params.color];
-    const PHI = params.phi;
+// ── JULIA click to set c ────────────────────────────────────
+canvas.addEventListener('click', e => {
+  if (params.mode !== 'julia') return;
+  const rect = canvas.getBoundingClientRect();
+  const W = canvas.width, H = canvas.height;
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const scale = 3.5 / (Math.min(W,H) * params.zoom);
+  params.juliaC.x = (mx - W/2) * scale;
+  params.juliaC.y = (my - H/2) * scale;
+  updateCDisplay();
+  if (!animating) draw();
+});
 
-    if (params.mode === 'spiral')    drawSpiral(cx, cy, R, pal, PHI, t);
-    else if (params.mode === 'julia') drawJulia(cx, cy, R, pal, t);
-    else                              drawLissajous(cx, cy, R, pal, PHI, t);
-  }
+function updateCDisplay() {
+  const cx = params.juliaC.x, cy = params.juliaC.y;
+  document.getElementById('julia-c-display').textContent =
+    `c = ${cx>=0?'':'\u2212'}${Math.abs(cx).toFixed(4)} ${cy>=0?'+':'\u2212'} ${Math.abs(cy).toFixed(4)}i`;
+}
 
-  function drawSpiral(cx, cy, R, pal, PHI, t) {
-    const { density: N, arms, turns, layers, chaos, curl, alpha, thick } = params;
-    for (let layer = 0; layer < layers; layer++) {
-      const ls = Math.pow(1 / PHI, layer);
-      const lr = layer * (Math.PI / layers) + t * (layer % 2 === 0 ? 1 : -1) * 0.3;
-      for (let arm = 0; arm < arms; arm++) {
-        const aa = (arm / arms) * Math.PI * 2;
-        const count = Math.floor(N / layers);
-        for (let i = 0; i < count; i++) {
-          const frac = i / count;
-          const angle = frac * Math.PI * 2 * turns + aa + lr;
-          const goldenR = R * ls * Math.pow(PHI, frac * turns - turns) * 0.6;
-          const blendR = R * ls * frac * 0.4 + goldenR * 0.6;
-          const n1 = chaos * R * 0.15 * Math.sin(frac * 47.3 + arm * 2.1 + layer * 1.7 + t);
-          const n2 = chaos * R * 0.1  * Math.cos(frac * 31.7 + arm * 3.4 + t * 0.7);
-          const ca = angle + curl * frac * Math.PI * 2;
-          const x = cx + (blendR + n1) * Math.cos(ca) + n2;
-          const y = cy + (blendR + n1) * Math.sin(ca) + n2;
-          ctx.globalAlpha = Math.min(alpha * (0.3 + 0.7 * frac) * (1 - layer * 0.15), 1);
-          ctx.fillStyle = pal(frac);
-          ctx.beginPath();
-          ctx.arc(x, y, thick * (0.4 + frac * 0.6), 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
+// ── MAIN DRAW ───────────────────────────────────────────────
+function draw(t = 0) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#05070f';
+  ctx.fillRect(0, 0, W, H);
 
-  function drawJulia(cx, cy, R, pal, t) {
-    const { density: N, turns, chaos, alpha, thick } = params;
-    const scale = R * 2.2;
-    const jcx = 0.355 + 0.05 * Math.sin(t * 0.3);
-    const jcy = -0.355 + 0.05 * Math.cos(t * 0.4);
-    const maxIter = 80;
-    const total = Math.floor(N * 1.5);
-    for (let i = 0; i < total; i++) {
-      const a = (i / total) * Math.PI * 2 * turns;
-      const baseR = R * (i / total) * 0.9;
-      let zx = (baseR * Math.cos(a)) / scale;
-      let zy = (baseR * Math.sin(a)) / scale;
-      const ox = zx, oy = zy;
-      let iter = 0;
-      while (zx * zx + zy * zy < 4 && iter < maxIter) {
-        const xn = zx * zx - zy * zy + jcx;
-        zy = 2 * zx * zy + jcy + chaos * 0.1 * Math.sin(iter * 0.3 + t);
-        zx = xn; iter++;
-      }
-      if (iter < maxIter) {
-        const frac = iter / maxIter;
-        ctx.globalAlpha = alpha * frac;
-        ctx.fillStyle = pal(frac);
-        ctx.beginPath();
-        ctx.arc(cx + ox * scale, cy + oy * scale, thick * (0.3 + frac), 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
+  const pal = palettes[params.color];
+  const PHI = params.phi;
 
-  function drawLissajous(cx, cy, R, pal, PHI, t) {
-    const { density: N, arms, turns, layers, chaos, curl, alpha, thick } = params;
-    for (let layer = 0; layer < layers; layer++) {
-      const ls = Math.pow(1 / PHI, layer);
-      const freqY = Math.round(arms * PHI) + layer;
-      const phase = (layer / layers) * Math.PI + t * (0.4 + layer * 0.1);
-      const count = Math.floor(N * 2 / layers);
+  if      (params.mode === 'spiral')     drawSpiral(W, H, pal, PHI, t);
+  else if (params.mode === 'julia')      drawJulia(W, H, t);
+  else if (params.mode === 'lissajous')  drawLissajous(W, H, pal, PHI, t);
+  else if (params.mode === 'torus')      drawTorus(W, H, pal, PHI, t);
+  else if (params.mode === 'donut')      drawDonut(W, H, pal, PHI, t);
+}
+
+// ── SPIRAL ──────────────────────────────────────────────────
+function drawSpiral(W, H, pal, PHI, t) {
+  const cx = W/2, cy = H/2, R = Math.min(W,H)*0.44;
+  const { density:N, arms, turns, layers, chaos, curl, alpha, thick } = params;
+  for (let layer = 0; layer < layers; layer++) {
+    const ls = Math.pow(1/PHI, layer);
+    const lr = layer*(Math.PI/layers) + t*(layer%2===0?1:-1)*0.3;
+    for (let arm = 0; arm < arms; arm++) {
+      const aa = (arm/arms)*Math.PI*2;
+      const count = Math.floor(N/layers);
       for (let i = 0; i < count; i++) {
-        const frac = i / count;
-        const theta = frac * Math.PI * 2 * turns;
-        const noise = chaos * 0.2 * Math.sin(theta * 7.3 + layer + t);
-        const sc = 0.5 + curl * 0.3;
-        const x = cx + R * ls * Math.sin(arms * theta + phase + noise) * sc;
-        const y = cy + R * ls * Math.sin(freqY * theta + noise) * sc;
-        ctx.globalAlpha = Math.min(alpha * (0.3 + 0.7 * frac) * (1 - layer * 0.12), 1);
+        const frac = i/count;
+        const angle = frac*Math.PI*2*turns + aa + lr;
+        const goldenR = R*ls*Math.pow(PHI, frac*turns-turns)*0.6;
+        const blendR  = R*ls*frac*0.4 + goldenR*0.6;
+        const n1 = chaos*R*0.15*Math.sin(frac*47.3+arm*2.1+layer*1.7+t);
+        const n2 = chaos*R*0.1 *Math.cos(frac*31.7+arm*3.4+t*0.7);
+        const ca = angle + curl*frac*Math.PI*2;
+        const x = cx + (blendR+n1)*Math.cos(ca) + n2;
+        const y = cy + (blendR+n1)*Math.sin(ca) + n2;
+        ctx.globalAlpha = Math.min(alpha*(0.3+0.7*frac)*(1-layer*0.15), 1);
         ctx.fillStyle = pal(frac);
         ctx.beginPath();
-        ctx.arc(x, y, thick * (0.3 + frac * 0.7), 0, Math.PI * 2);
+        ctx.arc(x, y, thick*(0.4+frac*0.6), 0, Math.PI*2);
         ctx.fill();
       }
     }
-    ctx.globalAlpha = 1;
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── JULIA — real pixel-grid escape-time ─────────────────────
+function drawJulia(W, H, t) {
+  const { maxIter, zoom, alpha } = params;
+  const cx = params.juliaC.x + (animating ? 0.04*Math.sin(t*0.3) : 0);
+  const cy = params.juliaC.y + (animating ? 0.04*Math.cos(t*0.4) : 0);
+  if (animating) updateCDisplay();
+
+  const imgData = ctx.createImageData(W, H);
+  const data = imgData.data;
+  const scale = 3.5 / (Math.min(W,H) * zoom);
+
+  for (let px = 0; px < W; px++) {
+    for (let py = 0; py < H; py++) {
+      let zx = (px - W/2) * scale;
+      let zy = (py - H/2) * scale;
+      let iter = 0;
+      while (zx*zx + zy*zy < 4 && iter < maxIter) {
+        const xn = zx*zx - zy*zy + cx;
+        zy = 2*zx*zy + cy;
+        zx = xn;
+        iter++;
+      }
+      const idx = (py*W + px)*4;
+      if (iter === maxIter) {
+        data[idx]=data[idx+1]=data[idx+2]=0; data[idx+3]=255;
+      } else {
+        // smooth coloring
+        const smooth = iter - Math.log(Math.log(Math.sqrt(zx*zx+zy*zy)))/Math.LN2;
+        const t2 = Math.max(0, Math.min(1, smooth / maxIter));
+        const [r,g,b] = palRGB(params.color, t2);
+        data[idx]   = r;
+        data[idx+1] = g;
+        data[idx+2] = b;
+        data[idx+3] = Math.round(alpha * 255);
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// ── LISSAJOUS ────────────────────────────────────────────────
+function drawLissajous(W, H, pal, PHI, t) {
+  const cx = W/2, cy = H/2, R = Math.min(W,H)*0.44;
+  const { density:N, arms, turns, layers, chaos, curl, alpha, thick } = params;
+  for (let layer = 0; layer < layers; layer++) {
+    const ls = Math.pow(1/PHI, layer);
+    const freqY = Math.round(arms*PHI) + layer;
+    const phase = (layer/layers)*Math.PI + t*(0.4+layer*0.1);
+    const count = Math.floor(N*2/layers);
+    for (let i = 0; i < count; i++) {
+      const frac = i/count;
+      const theta = frac*Math.PI*2*turns;
+      const noise = chaos*0.2*Math.sin(theta*7.3+layer+t);
+      const sc = 0.5 + curl*0.3;
+      const x = cx + R*ls*Math.sin(arms*theta+phase+noise)*sc;
+      const y = cy + R*ls*Math.sin(freqY*theta+noise)*sc;
+      ctx.globalAlpha = Math.min(alpha*(0.3+0.7*frac)*(1-layer*0.12), 1);
+      ctx.fillStyle = pal(frac);
+      ctx.beginPath();
+      ctx.arc(x, y, thick*(0.3+frac*0.7), 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── TORUS — 3D projection with golden-angle distribution ────
+function drawTorus(W, H, pal, PHI, t) {
+  const cx = W/2, cy = H/2;
+  const scale = Math.min(W,H) * 0.18;
+  const { torusR: R, torusr: r, torusN: N, tiltX, chaos, alpha, thick } = params;
+
+  const rotY = t * 0.4;
+  const rotX = tiltX + t * 0.15;
+
+  // golden angle steps
+  const ga1 = 2*Math.PI / (PHI*PHI); // theta step
+  const ga2 = 2*Math.PI / PHI;       // phi step
+
+  const points = [];
+  for (let k = 0; k < N; k++) {
+    const theta = ga1 * k + t * 0.2;
+    const phi   = ga2 * k + t * 0.3;
+
+    // torus surface + noise
+    const nr = chaos * 0.15 * Math.sin(k*0.137 + t);
+    const Rk = R + nr;
+    const rk = r  + nr*0.5;
+
+    let x3 = (Rk + rk*Math.cos(phi)) * Math.cos(theta);
+    let y3 = (Rk + rk*Math.cos(phi)) * Math.sin(theta);
+    let z3 =  rk * Math.sin(phi);
+
+    // rotate Y
+    const x2 =  x3*Math.cos(rotY) + z3*Math.sin(rotY);
+    const z2 = -x3*Math.sin(rotY) + z3*Math.cos(rotY);
+    // rotate X
+    const y2 =  y3*Math.cos(rotX) - z2*Math.sin(rotX);
+    const z1 =  y3*Math.sin(rotX) + z2*Math.cos(rotX);
+
+    // perspective
+    const fov = 6;
+    const pz = fov / (fov + z1 + R + 1);
+    const sx = cx + x2 * scale * pz;
+    const sy = cy + y2 * scale * pz;
+    const depth = (z1 + R + r + 1) / (2*(R+r+1));
+    points.push({ sx, sy, depth, frac: k/N });
   }
 
-  window.addEventListener('resize', resize);
-  resize();
+  // painter's sort — back to front
+  points.sort((a,b) => a.depth - b.depth);
+
+  for (const p of points) {
+    ctx.globalAlpha = Math.min(alpha * (0.3 + 0.7*p.depth), 1);
+    ctx.fillStyle = pal(p.frac);
+    ctx.beginPath();
+    ctx.arc(p.sx, p.sy, thick * (0.5 + p.depth*1.2), 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── DONUT — solid shaded 3D torus with Blinn-Phong lighting ─
+function drawDonut(W, H, pal, PHI, t) {
+  const cx = W/2, cy = H/2;
+  const scale = Math.min(W,H) * 0.19;
+  const { torusR: R, torusr: r, tiltX, alpha } = params;
+
+  const rotY = t * 0.5;
+  const rotX = tiltX + t * 0.18;
+
+  // light direction (world space, fixed)
+  const Lx = 0.6/Math.sqrt(1.25), Ly = -0.8/Math.sqrt(1.25), Lz = 0.5/Math.sqrt(1.25);
+
+  const THETA_STEPS = 72;  // tube cross-section resolution
+  const PHI_STEPS   = 108; // ring resolution
+
+  const faces = [];
+
+  for (let j = 0; j < PHI_STEPS; j++) {
+    const phi0 = (j    / PHI_STEPS) * Math.PI * 2;
+    const phi1 = ((j+1)/ PHI_STEPS) * Math.PI * 2;
+
+    for (let i = 0; i < THETA_STEPS; i++) {
+      const th0 = (i    / THETA_STEPS) * Math.PI * 2;
+      const th1 = ((i+1)/ THETA_STEPS) * Math.PI * 2;
+
+      const corners = [[phi0,th0],[phi0,th1],[phi1,th1],[phi1,th0]];
+      const proj = corners.map(([ph,th]) => {
+        let x3 = (R + r*Math.cos(th)) * Math.cos(ph);
+        let y3 = (R + r*Math.cos(th)) * Math.sin(ph);
+        let z3 =  r * Math.sin(th);
+        let nx = Math.cos(th)*Math.cos(ph);
+        let ny = Math.cos(th)*Math.sin(ph);
+        let nz = Math.sin(th);
+        // rotate Y
+        let x2 =  x3*Math.cos(rotY) + z3*Math.sin(rotY);
+        let z2 = -x3*Math.sin(rotY) + z3*Math.cos(rotY);
+        let nx2=  nx*Math.cos(rotY) + nz*Math.sin(rotY);
+        let nz2= -nx*Math.sin(rotY) + nz*Math.cos(rotY);
+        // rotate X
+        let y2 =  y3*Math.cos(rotX) - z2*Math.sin(rotX);
+        let z1 =  y3*Math.sin(rotX) + z2*Math.cos(rotX);
+        let ny2=  ny*Math.cos(rotX) - nz2*Math.sin(rotX);
+        let nz1=  ny*Math.sin(rotX) + nz2*Math.cos(rotX);
+        const fov = 6;
+        const pz = fov / (fov + z1 + R + 1);
+        return { sx: cx+x2*scale*pz, sy: cy+y2*scale*pz, z: z1,
+                 nx: nx2, ny: ny2, nz: nz1 };
+      });
+
+      const avgZ = (proj[0].z+proj[1].z+proj[2].z+proj[3].z)*0.25;
+      const fnx  = (proj[0].nx+proj[1].nx+proj[2].nx+proj[3].nx)*0.25;
+      const fny  = (proj[0].ny+proj[1].ny+proj[2].ny+proj[3].ny)*0.25;
+      const fnz  = (proj[0].nz+proj[1].nz+proj[2].nz+proj[3].nz)*0.25;
+
+      const diff = Math.max(0, fnx*Lx + fny*Ly + fnz*Lz);
+      // Blinn-Phong specular
+      const hx=(Lx)*0.707, hy=(Ly)*0.707, hz=(Lz+1)*0.707;
+      const hL=Math.sqrt(hx*hx+hy*hy+hz*hz);
+      const spec = Math.pow(Math.max(0, fnx*(hx/hL)+fny*(hy/hL)+fnz*(hz/hL)), 48);
+
+      // colour: phi sets hue around ring, theta sets shade on tube
+      const frac = j / PHI_STEPS;
+      const [br,bg,bb2] = palRGB(params.color, frac);
+      const amb = 0.07;
+      const rr = Math.min(255, Math.round(br*(amb + 0.88*diff) + spec*240));
+      const gg = Math.min(255, Math.round(bg*(amb + 0.88*diff) + spec*245));
+      const bb = Math.min(255, Math.round(bb2*(amb + 0.88*diff) + spec*255));
+
+      faces.push({ avgZ, proj, rr, gg, bb });
+    }
+  }
+
+  // painter's algorithm — back to front
+  faces.sort((a,b) => a.avgZ - b.avgZ);
+
+  ctx.globalAlpha = alpha;
+  for (const f of faces) {
+    ctx.fillStyle   = `rgb(${f.rr},${f.gg},${f.bb})`;
+    ctx.strokeStyle = `rgb(${f.rr},${f.gg},${f.bb})`;
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(f.proj[0].sx, f.proj[0].sy);
+    ctx.lineTo(f.proj[1].sx, f.proj[1].sy);
+    ctx.lineTo(f.proj[2].sx, f.proj[2].sy);
+    ctx.lineTo(f.proj[3].sx, f.proj[3].sy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+// nav scroll highlight + back to top
+const sections = ['explorer-section','math-section','about-section','contact-section'];
+const navLinks = document.querySelectorAll('#nav-links a');
+const btt = document.getElementById('back-to-top');
+window.addEventListener('scroll', () => {
+  btt.classList.toggle('visible', window.scrollY > 300);
+  let current = '';
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && window.scrollY >= el.offsetTop - 60) current = id;
+  });
+  navLinks.forEach(a => {
+    a.style.color = a.getAttribute('href') === `#${current}` ? 'var(--text-bright)' : '';
+  });
+}, { passive: true });
 </script>
 </body>
 </html>
